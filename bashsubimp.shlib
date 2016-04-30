@@ -1,0 +1,111 @@
+###################
+# bashimp.shlib v0.1.0
+#
+# @author RuneImp <runeimp@gmail.com>
+# @licenses http://opensource.org/licenses/MIT
+#
+#
+
+[[ "x$APP_CLI" = "x" ]]              && echo "APP_CLI is undefined" 1>&2
+[[ "x$APP_NAME" = "x" ]]             && echo "APP_NAME is undefined" 1>&2
+[[ "x$CMD_PREFIX" = "x" ]]           && CMD_PREFIX="${APP_CLI}-"
+[[ $DEFAULT_LIST_SUBCOMMANDS != 1 ]] && declare -i DEFAULT_LIST_SUBCOMMANDS=0
+
+declare -i EXIT_NO_COMMAND=1
+declare -i EXIT_NO_SUBCOMMAND_FOUND=2
+declare -i EXIT_NO_SUBCOMMANDS_FOUND=3
+
+declare cmd=""
+declare cmd_name="$1"; shift;
+declare -i fast_basename=1
+
+[[ "x$MSG_SUBCOMMAND_NOT_GIVEN" = 'x' ]] && declare MSG_SUBCOMMAND_NOT_GIVEN='ERROR: No command specified'
+[[ "x$MSG_SUBCOMMAND_NOT_FOUND" = 'x' ]] && declare MSG_SUBCOMMAND_NOT_FOUND="WARNING: '$cmd_name' not available as a $APP_CLI subcommand. Maybe you ment something else?"
+
+# Testing for fast basename support
+declare TMP='/path/to/trim/test.txt.gz'
+TMP="${TMP##*/}"
+if [[ "${TMP}" = 'test.txt.gz' ]]; then
+	fast_basename=0
+fi
+
+unset TMP
+
+#
+# FUNCTIONS
+#
+bashsubimp::error()
+{
+	echo "  $1" 1>&2
+	if [[ "x$2" != "x" ]]; then
+		exit $2
+	fi
+}
+
+bashsubimp::list_subcommands() {
+	declare filename=""
+	declare -i i=0
+	declare oldIFS="$IFS"
+	IFS=:
+
+	echo "  $APP_NAME Commands:"
+	printf "    %-12s %s\n" list "List all subcommands."
+	printf "    %-12s %s\n" version "Display application version number only."
+	printf "    %-12s %s\n" Version "Display application label with version number."
+
+	while read -r path
+	do
+		IFS="$oldIFS"
+		for filename in $(ls "${path}/${CMD_PREFIX}"* 2> /dev/null); do
+			# echo "\$filename: $filename"
+			if [[ "${filename##*.}" != 'js' ]]; then
+				if [[ $fast_basename = 0 ]]; then
+					filename="${filename##*/}"
+					if [[ "${filename##*.}" = 'shlib' ]]; then
+						filename="${filename%.*}"
+					fi
+					filename="${filename#$CMD_PREFIX}"
+				else
+					filename="$(basename "$filename")"
+					filename="$(echo "$filename" | sed "s/^$CMD_PREFIX//")"
+				fi
+				echo "    $filename"
+			fi
+		done
+		IFS=:
+	done <<< $(echo "$PATH" | tr ':' '\n')
+
+	IFS="$oldIFS"
+}
+
+#
+# Subcommand Processing
+#
+case "$cmd_name" in
+	list)
+		bashsubimp::list_subcommands
+		exit 0
+		;;
+	version)
+		echo "$APP_VERSION"
+		exit 0
+		;;
+	Version)
+		echo "$APP_LABEL"
+		exit 0
+		;;
+	*)
+		cmd="${CMD_PREFIX}${cmd_name}"
+		if [[ "x$cmd_name" = "x" ]] && [[ $DEFAULT_LIST_SUBCOMMANDS != 1 ]]; then
+			bashsubimp::list_subcommands
+		elif [[ "$cmd" != "$CMD_PREFIX" ]]; then
+			if [[ $(type -t "$cmd" 2> /dev/null) = 'file' ]]; then
+				"$cmd" "$@"
+			else
+				bashsubimp::error "$MSG_SUBCOMMAND_NOT_FOUND" $EXIT_NO_SUBCOMMAND_FOUND
+			fi
+		else
+			bashsubimp::error "$MSG_SUBCOMMAND_NOT_GIVEN" $EXIT_NO_COMMAND
+		fi
+		;;
+esac
