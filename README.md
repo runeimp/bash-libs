@@ -1,6 +1,34 @@
 BASH-Libs
 =========
 
+Script Creation
+---------------
+
+### BASH It In
+
+`bashitin` is a tool for the creation of new scripts by giving it a script name it will:
+
+1. Initialize a new script file in your personal `bin` directory if you have one setup or one of several standard user `bin` directories.
+2. Make the script executable.
+3. Open the script in your $VISUAL editor if that environment variable is defined or your $EDITOR otherwise.
+
+#### Usage Example
+
+```
+# Create a script named 'example-app'
+$ bashitin example-app
+
+# Create a script with the app name of 'Example App' which will result in the script having the slugified CLI name of 'example-app'
+$ bashitin --app-name "Example App"
+
+# Create a script with the app name of 'Example App' but the CLI name of 'exapp'
+$ bashitin -a "Example App" -c exapp
+
+# Create a script that utlizes /bin/sh instead of /usr/bin/env bash for the bang path
+$ bashitin --bang-path "/bin/sh" example-app
+
+```
+
 Option Parsing
 --------------
 

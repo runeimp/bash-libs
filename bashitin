@@ -1,0 +1,249 @@
+#!/usr/bin/env bash
+###################
+# bashitin v0.1.0
+#
+# @author RuneImp <runeimp@gmail.com>
+# @licenses http://opensource.org/licenses/MIT
+#
+#
+
+APP_AUTHOR_NAME="RuneImp"
+APP_AUTHOR_MAIL="runeimp@gmail.com"
+APP_NAME="BASH It In"
+APP_NAME_CLI="bashitin"
+declare -i APP_VERSION_MAJOR=0
+declare -i APP_VERSION_MINOR=1
+declare -i APP_VERSION_PATCH=0
+APP_VERSION="${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_PATCH}"
+APP_LICENSES="http://opensource.org/licenses/MIT"
+APP_LABEL="${APP_AUTHOR_NAME}'s $APP_NAME v$APP_VERSION
+License(s): $APP_LICENSES"
+declare -i DEBUG_LEVEL=0
+
+declare -i EXIT_NO_BIN_PATH=1
+
+#
+# Functions
+#
+
+bashitin::dir_is_writable()
+{
+	if [[ -d "$1" ]] && [[ -w "$1" ]]; then
+		return 0
+	fi
+
+	return 1
+}
+
+bashitin::error()
+{
+	echo "  $1" 1>&2
+	if [[ "x$2" != "x" ]]; then
+		exit $2
+	fi
+}
+
+bashitin::input_yesno()
+{
+	promp="$1"
+	yes="$2"
+	no="$3"
+
+	read -r -p "${BASHIMP_PROMPT_PREFIX}${promp} [yes/NO] (n) " response
+
+	shopt -s nocasematch
+	if [[ "$response" =~ ^(y|yes)$ ]]; then
+		[ -n "$yes" ] && echo "$yes"
+		result=0
+	else
+		[ -n "$no" ] && echo "$no"
+		result=1
+	fi
+	shopt -u nocasematch
+
+	return $result
+}
+
+bashitin::script_create()
+{
+	exec 3<&1
+	exec > "${BIN_PATH}/${CODE_NAME_CLI}"
+	echo "#!$BANG_PATH"
+	echo "###################"
+	echo "# ${CODE_NAME_APP} v${CODE_VERSION}"
+	echo "#"
+	[ -n "${AUTHOR_INFO}" ] && echo "# @author ${AUTHOR_INFO}"
+	[ -n "${CODE_LICENSES}" ] && echo "# @licenses ${CODE_LICENSES}"
+	echo "#"
+	echo "#####"
+	echo "# ChangeLog:"
+	echo "# ----------"
+	echo "# $(date "+%Y-%m-%d")  $CODE_VERSION      Initial script creation."
+	echo "#"
+	echo "#"
+	echo
+	echo 'APP_NAME_APP="'"$CODE_NAME_APP"'"'
+	echo 'APP_NAME_CLI="'"$CODE_NAME_CLI"'"'
+	echo 'APP_VERSION="'"$CODE_VERSION"'"'
+	echo 'APP_LABEL="$APP_NAME_APP v$APP_VERSION"'
+	echo
+	echo
+	echo
+	echo
+	echo
+	echo
+	echo "source bashsubimp.shlib"
+	echo
+	echo
+	exec 1<&3 3<&-
+
+	chmod +x "${BIN_PATH}/${CODE_NAME_CLI}"
+
+	if [[ "x$VISUAL" != 'x' ]]; then
+		$VISUAL "${BIN_PATH}/${CODE_NAME_CLI}"
+	else
+		$EDITOR "${BIN_PATH}/${CODE_NAME_CLI}"
+	fi
+}
+
+bashitin::slugify()
+{
+	echo "$(printf "$1" | tr [[:upper:]] [[:lower:]] | tr -cs [._[:alnum:]] -)"
+}
+
+
+#
+# Option Parsing
+#
+until [[ $# = 0 ]]; do
+	case "$1" in
+		-a | --app-name)
+			# App Name
+			CODE_NAME_APP="$2"
+			shift
+			;;
+		-b | --bin-path)
+			# Binaries Path
+			BIN_PATH="$2"
+			shift
+			;;
+		-c | --cli-name)
+			# App CLI Name
+			CODE_NAME_CLI="$2"
+			shift
+			;;
+		-d | --debug | debug)
+			# Set Debugging Level
+			DEBUG_LEVEL=$2
+			shift
+			;;
+		-h | --help | help)
+			# App Name
+			echo "App Help..."
+			exit 0
+			;;
+		-p | --bang-path)
+			# App Name
+			BANG_PATH="$2"
+			shift
+			;;
+		-v | --version | version)
+			# App Version Number
+			echo "$APP_VERSION"
+			exit 0
+			;;
+		-V | --Version | Version)
+			# App Version Label
+			echo "$APP_LABEL"
+			exit 0
+			;;
+		*)
+			# App CLI Name
+			CODE_NAME_CLI="$1"
+			;;
+	esac
+
+	shift
+done
+
+#
+# Configuration Defaults
+#
+TMP=$(which dscl > /dev/null)
+if [[ $? ]]; then
+	AUTHOR_INFO_DEFAULT="$(dscl . -read "/Users/$USER" RealName | cut -d" " -f 2-9) <${USER}@gmail.com>"
+else
+	AUTHOR_INFO_DEFAULT="Author Unknown <author.unknown@gmail.com>"
+fi
+BANG_PATH_DEFAULT='/usr/bin/env bash'
+if [[ -d "${HOME}/bin" ]]; then
+	BIN_PATH_DEFAULT="${HOME}/bin"
+elif [[ -d "/usr/local/bin" ]]; then
+	BIN_PATH_DEFAULT="/usr/local/bin"
+elif [[ -d "/usr/local/opt/bin" ]]; then
+	BIN_PATH_DEFAULT="/usr/local/opt/bin"
+elif [[ -d "/opt/bin" ]]; then
+	BIN_PATH_DEFAULT="/opt/bin"
+else
+	bashitin::error "FATAL: Could not find a valid 'bin' directory" $EXIT_NO_BIN_PATH
+fi
+CODE_LICENSES_DEFAULT="http://opensource.org/licenses/MIT"
+CODE_VERSION_DEFAULT="0.1.0"
+
+#
+# Config File Processing
+#
+if [[ -e "$XDG_CONFIG_HOME/bashitin.cfg" ]]; then
+	source "$XDG_CONFIG_HOME/bashitin.cfg"
+elif [[ -e "$HOME/.bashitin" ]]; then
+	source "$HOME/.bashitin"
+else
+	if [[ -d "$XDG_CONFIG_HOME" ]]; then
+		echo "  Please define a config file at $XDG_CONFIG_HOME/bashitin.cfg"
+	else
+		echo "  Please define a config file at $HOME/.bashitin"
+	fi
+	echo "  to store your default script information such as author and license info."
+	echo
+fi
+
+if [[ $DEBUG_LEVEL > 0 ]]; then
+	echo "\$AUTHOR_INFO_DEFAULT:    $AUTHOR_INFO_DEFAULT"
+	echo "\$BANG_PATH_DEFAULT:      $BANG_PATH_DEFAULT"
+	echo "\$BIN_PATH_DEFAULT:       $BIN_PATH_DEFAULT"
+	echo "\$CODE_LICENSES_DEFAULT:  $CODE_LICENSES_DEFAULT"
+	echo "\$CODE_VERSION_DEFAULT:   $CODE_VERSION_DEFAULT"
+	echo "\$CODE_NAME_CLI_DEFAULT:  $CODE_NAME_CLI_DEFAULT"
+fi
+
+
+[[ "x$AUTHOR_INFO" = 'x' ]]		&& AUTHOR_INFO="$AUTHOR_INFO_DEFAULT"
+[[ "x$BANG_PATH" = 'x' ]]		&& BANG_PATH="$BANG_PATH_DEFAULT"
+[[ "x$BIN_PATH" = 'x' ]]		&& BIN_PATH="$BIN_PATH_DEFAULT"
+[[ "x$CODE_LICENSES" = 'x' ]]	&& CODE_LICENSES="$CODE_LICENSES_DEFAULT"
+[[ "x$CODE_VERSION" = 'x' ]]	&& CODE_VERSION="$CODE_VERSION_DEFAULT"
+if [[ "x$CODE_NAME_CLI" = 'x' ]]; then
+	if [[ "x$CODE_NAME_APP" != 'x' ]]; then
+		CODE_NAME_CLI="$(bashitin::slugify "$CODE_NAME_APP")"
+	fi
+fi
+[[ "x$CODE_NAME_APP" = 'x' ]]	&& CODE_NAME_APP="$CODE_NAME_CLI"
+
+
+if [[ $DEBUG_LEVEL > 0 ]]; then
+	echo "\$AUTHOR_INFO:    $AUTHOR_INFO"
+	echo "\$BANG_PATH:      $BANG_PATH"
+	echo "\$BIN_PATH:       $BIN_PATH"
+	echo "\$CODE_LICENSES:  $CODE_LICENSES"
+	echo "\$CODE_VERSION:   $CODE_VERSION"
+	echo "\$CODE_NAME_APP:  $CODE_NAME_APP"
+	echo "\$CODE_NAME_CLI:  $CODE_NAME_CLI"
+	echo "\$DEBUG_LEVEL:    $DEBUG_LEVEL"
+fi
+
+if [[ "x$CODE_NAME_CLI" != 'x' ]]; then
+	bashitin::script_create
+fi
+
+
+
